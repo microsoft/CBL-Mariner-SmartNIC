@@ -1,0 +1,29 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+jobs:
+- job: IMAGES_BUILD
+  timeoutInMinutes: 420
+  pool:
+    vmImage: ubuntu-latest
+
+  steps:
+  - bash: |
+        mkdir -p $(Build.ArtifactStagingDirectory)/bfbs
+        pwd
+        ls $(System.DefaultWorkingDirectory)
+    displayName: 'Prep Workspace'
+
+  - script: |
+      set -x
+      docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+      sudo $(System.DefaultWorkingDirectory)/bfb-build
+      cp *.bfb '$(Build.ArtifactStagingDirectory)/bfbs/'
+    displayName: 'Run bfb-build'
+
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish bfb'
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)/bfbs/'
+      artifact: 'bfb'
