@@ -5,7 +5,6 @@ ADD qemu-aarch64-static /usr/bin/
 WORKDIR /root/workspace
 ADD install.sh .
 ADD create_bfb .
-ADD setpriv /usr/bin/
 ADD rebuild_drivers /tmp
 
 ENV RUN_FW_UPDATER=no
