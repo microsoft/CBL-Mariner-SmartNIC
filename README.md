@@ -6,6 +6,8 @@ Mellanox/bfb-mariner https://github.com/Mellanox/bfb-mariner
 
 ## Build BFB
 
+The following steps will pull RPMs from Nvidia servers. These RPMs will be tied to Nvidia's licensing and user agreements.
+
 `$ sudo ./bfb-build`
 
 You may need to run the following to configure qemu
