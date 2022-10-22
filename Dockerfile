@@ -1,5 +1,5 @@
 #  docker build -t bfb_runtime_mariner -f Dockerfile .
-FROM --platform=linux/arm64 mcr.microsoft.com/cbl-mariner/base/core:2.0.20220426-arm64
+FROM --platform=linux/arm64 mcr.microsoft.com/cbl-mariner/base/core:2.0.20221010-arm64
 ADD qemu-aarch64-static /usr/bin/
 
 WORKDIR /root/workspace
@@ -16,8 +16,10 @@ RUN yum-config-manager --save --setopt=doca.sslverify=0 doca
 RUN yum-config-manager --save --setopt=doca.gpgcheck=0 doca
 RUN yum-config-manager --dump doca
 
-RUN for app in wget kmod util-linux netplan openssh-server iproute which git selinux-policy-devel diffutils file procps-ng patch rpm-build kernel kernel-devel kernel-headers python-netifaces libreswan python3-devel python3-idle python3-test python3-tkinter python3-Cython efibootmgr efivar grub2 grub2-efi grub2-efi-unsigned shim-unsigned-aarch64 device-mapper-persistent-data lvm2 acpid perf popt-devel bc flex bison edac-utils lm_sensors lm_sensors-sensord re2c ninja-build meson cryptsetup rasdaemon pciutils-devel watchdog python3-sphinx python3-six kexec-tools jq dbus libgomp iana-etc libgomp-devel libgcc-devel libgcc-atomic libmpc binutils iptables glibc-devel gcc tcl-devel automake libmnl autoconf tcl libnl3-devel openssl-devel libstdc++-devel binutils-devel libnl3 libdb-devel make libmnl-devel iptables-devel lsof desktop-file-utils doxygen cmake cmake3 libcap-ng-devel systemd-devel ncurses-devel net-tools sudo libpcap libnuma unbound vim; do yum install -y $app || true ;done
 
+RUN for app in wget kmod util-linux netplan openssh-server iproute which git selinux-policy-devel diffutils file procps-ng patch rpm-build kernel kernel-devel kernel-headers python-netifaces libreswan python3-devel python3-idle python3-test python3-tkinter python3-Cython efibootmgr efivar grub2 grub2-efi grub2-efi-unsigned shim-unsigned-aarch64 device-mapper-persistent-data lvm2 acpid perf popt-devel bc flex bison edac-utils lm_sensors lm_sensors-sensord re2c ninja-build meson cryptsetup rasdaemon pciutils-devel watchdog python3-sphinx python3-six kexec-tools jq dbus libgomp iana-etc libgomp-devel libgcc-devel libgcc-atomic libmpc binutils iptables glibc-devel gcc tcl-devel automake libmnl autoconf tcl libnl3-devel openssl-devel libstdc++-devel binutils-devel libnl3 libdb-devel make libmnl-devel iptables-devel lsof desktop-file-utils doxygen cmake cmake3 libcap-ng-devel systemd-devel ncurses-devel net-tools sudo libpcap libnuma unbound vim; do yum install -y $app || true ;done
+# The Mariner versions of these packages cause build failures. Use only the NVIDIA versions for now
+RUN yum install -y --disablerepo="mariner*" perftest libibverbs libreswan
 # Set python3.9 as a default
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 10
 # RUN update-alternatives --install /usr/bin/python python /usr/bin/python2.7 10
@@ -25,7 +27,7 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 10
 RUN /tmp/rebuild_drivers $(/bin/ls -1 /lib/modules/ | head -1)
 RUN /usr/sbin/depmod -a $(/bin/ls -1 /lib/modules/ | head -1) || true
 
-RUN yum install -y ibacm ibutils2 infiniband-diags infiniband-diags-compat libibumad libibverbs libibverbs-utils librdmacm librdmacm-utils libxpmem libxpmem-devel mft mft-oem mlnx-ethtool mlnx-fw-updater mlnx-iproute2 mlnx-libsnap mlx-regex mlxbf-bootctl mlxbf-bootimages mstflint ofed-scripts opensm opensm-devel opensm-libs opensm-static perftest rdma-core rdma-core-devel srp_daemon ucx ucx-cma ucx-devel ucx-ib ucx-knem ucx-rdmacm xpmem mlnx-tools mlnx-dpdk mlnx-dpdk-devel dpcp libvma libvma-utils python3-grpcio python3-protobuf rxp-compiler
+RUN yum install -y ibacm ibutils2 infiniband-diags infiniband-diags-compat libibumad libibverbs-utils librdmacm librdmacm-utils libxpmem libxpmem-devel mft mft-oem mlnx-ethtool mlnx-fw-updater mlnx-iproute2 mlnx-libsnap mlx-regex mlxbf-bootctl mlxbf-bootimages mstflint ofed-scripts opensm opensm-devel opensm-libs opensm-static rdma-core rdma-core-devel srp_daemon ucx ucx-cma ucx-devel ucx-ib ucx-knem ucx-rdmacm xpmem mlnx-tools mlnx-dpdk mlnx-dpdk-devel dpcp libvma libvma-utils python3-grpcio python3-protobuf rxp-compiler
 
 # RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location mlnx-ofa_kernel)
 # RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location mlnx-ofa_kernel-devel)
