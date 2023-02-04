@@ -79,7 +79,8 @@ mkdir -p ${WDIR}/${BF_VERSION}/extras/{SPECS,RPMS,SOURCES,BUILD}
 for p in ${WDIR}/${BF_VERSION}/extras/SRPMS/*.src.rpm
 do
 	case $p in
-		*rshim* | *libpka* | *mlx-OpenIPMI* | *mlxbf-bootctl* | *ipmb-host* | *mlx-cpld*)
+                *rshim* | *libpka* | *mlx-OpenIPMI* | *mlxbf-bootctl* | *ipmb-dev* | *ipmi-host* | *mlx-cpld* | *mlxbf* | *IPMI* | *mlxbf-pmc*)
+
 			continue
 			;;
 		*dw_mmc*)
