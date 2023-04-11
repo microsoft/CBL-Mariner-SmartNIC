@@ -6,6 +6,7 @@ WORKDIR /root/workspace
 ADD install.sh .
 ADD create_bfb .
 ADD rebuild_drivers /tmp
+ADD mlxbf-bootimages-3.9.3-12383.aarch64.rpm .
 
 ENV RUN_FW_UPDATER=no
 
@@ -17,7 +18,7 @@ RUN yum-config-manager --save --setopt=doca.gpgcheck=0 doca
 RUN yum-config-manager --dump doca
 
 
-RUN for app in wget kmod util-linux netplan openssh-server iproute which git selinux-policy-devel diffutils file procps-ng patch rpm-build kernel kernel-devel kernel-headers python-netifaces libreswan python3-devel python3-idle python3-test python3-tkinter python3-Cython efibootmgr efivar grub2 grub2-efi grub2-efi-unsigned shim-unsigned-aarch64 device-mapper-persistent-data lvm2 acpid perf popt-devel bc flex bison edac-utils lm_sensors lm_sensors-sensord re2c ninja-build meson cryptsetup rasdaemon pciutils-devel watchdog python3-sphinx python3-six kexec-tools jq dbus libgomp iana-etc libgomp-devel libgcc-devel libgcc-atomic libmpc binutils iptables glibc-devel gcc tcl-devel automake libmnl autoconf tcl libnl3-devel openssl-devel libstdc++-devel binutils-devel libnl3 libdb-devel make libmnl-devel iptables-devel lsof desktop-file-utils doxygen cmake cmake3 libcap-ng-devel systemd-devel ncurses-devel net-tools sudo libpcap libnuma unbound vim; do yum install -y $app || true ;done
+RUN for app in wget kmod util-linux netplan openssh-server iproute which git selinux-policy-devel diffutils file procps-ng patch rpm-build  kernel-5.15.87.1-1.cm2 kernel-headers-5.15.87.1-1.cm2 kernel-devel-5.15.87.1-1.cm2 python-netifaces libreswan python3-devel python3-idle python3-test python3-tkinter python3-Cython efibootmgr efivar grub2 grub2-efi grub2-efi-unsigned shim-unsigned-aarch64 device-mapper-persistent-data lvm2 acpid perf popt-devel bc flex bison edac-utils lm_sensors lm_sensors-sensord re2c ninja-build meson cryptsetup rasdaemon pciutils-devel watchdog python3-sphinx python3-six kexec-tools jq dbus libgomp iana-etc libgomp-devel libgcc-devel libgcc-atomic libmpc binutils iptables glibc-devel gcc tcl-devel automake libmnl autoconf tcl libnl3-devel openssl-devel libstdc++-devel binutils-devel libnl3 libdb-devel make libmnl-devel iptables-devel lsof desktop-file-utils doxygen cmake cmake3 libcap-ng-devel systemd-devel ncurses-devel net-tools sudo libpcap libnuma unbound vim mobi-containerd mobi-runc apparmor-parser; do yum install -y $app || true ;done
 # The Mariner versions of these packages cause build failures. Use only the NVIDIA versions for now
 RUN yum install -y --disablerepo="mariner*" perftest libibverbs libreswan
 # Set python3.9 as a default
@@ -27,8 +28,10 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 10
 RUN /tmp/rebuild_drivers $(/bin/ls -1 /lib/modules/ | head -1)
 RUN /usr/sbin/depmod -a $(/bin/ls -1 /lib/modules/ | head -1) || true
 
-RUN yum install -y ibacm ibutils2 infiniband-diags infiniband-diags-compat libibumad libibverbs-utils librdmacm librdmacm-utils libxpmem libxpmem-devel mft mft-oem mlnx-ethtool mlnx-fw-updater mlnx-iproute2 mlnx-libsnap mlx-regex mlxbf-bootctl mlxbf-bootimages mstflint ofed-scripts opensm opensm-devel opensm-libs opensm-static rdma-core rdma-core-devel srp_daemon ucx ucx-cma ucx-devel ucx-ib ucx-knem ucx-rdmacm xpmem mlnx-tools mlnx-dpdk mlnx-dpdk-devel dpcp libvma libvma-utils python3-grpcio python3-protobuf rxp-compiler
+RUN yum install -y ibacm ibutils2 infiniband-diags infiniband-diags-compat libibumad libibverbs-utils librdmacm librdmacm-utils libxpmem libxpmem-devel mft mft-oem mlnx-ethtool mlnx-fw-updater mlnx-iproute2 mlnx-libsnap mlx-regex mlxbf-bootctl mlxbf-bootimages mstflint ofed-scripts opensm opensm-devel opensm-libs opensm-static rdma-core rdma-core-devel srp_daemon ucx ucx-cma ucx-devel ucx-ib ucx-knem ucx-rdmacm xpmem mlnx-tools mlnx-dpdk mlnx-dpdk-devel dpcp libvma libvma-utils python3-grpcio python3-protobuf rxp-compiler 
+# kubeadm kubelet kubectl
 
+# mlxbf-bootimages
 # RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location mlnx-ofa_kernel)
 # RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location mlnx-ofa_kernel-devel)
 # RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location mlnx-ofa_kernel-modules)
@@ -48,6 +51,8 @@ RUN rpm -iv --nodeps mlxbf-bfscripts*rpm
 
 RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location bf-release)
 RUN rpm -iv --nodeps bf-release*rpm
+
+RUN rpm -ihv --force mlxbf-bootimages-*.aarch64.rpm || true
 
 RUN /bin/rm -f *rpm
 

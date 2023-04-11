@@ -112,7 +112,10 @@ boot_start=2048
 boot_size=$(($boot_size_bytes/$bs))
 root_start=$((2048 + $boot_size))
 root_end=$disk_end
-root_size=$(($root_end - $root_start + 1))
+# root_size=$((($root_end - $root_start + 1)/2))
+root_size=$($root_end - $root_start + 1)
+
+root2_start=$($root_start + $root_size)
 
 dd if=/dev/zero of="$device" bs="$bs" count=1
 
@@ -127,6 +130,7 @@ last-lba: $disk_end
 ${device}p1 : start=$boot_start, size=$boot_size, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=CEAEF8AC-B559-4D83-ACB1-A4F45B26E7F0, name="EFI System", bootable
 ${device}p2 : start=$root_start ,size=$root_size, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=F093FF4B-CC26-408F-81F5-FF2DD6AE139F, name="writable"
 EOF
+# ${device}p3 : start=$root2_start ,size=$root_size, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=F093FF4B-CC26-408F-81F5-FF2DD6AE138F, name="writable"
 
 sync
 
