@@ -14,6 +14,7 @@ fi
 
 DISTRO="mariner"
 DISTRO_VERSION="2.0"
+wget -P . -r --no-verbose --no-directories -l1 --no-parent -A 'mlxbf-bootimages*.aarch64.rpm' https://linux.mellanox.com/public/repo/bluefield/3.9.3/bootimages/prod/
 
 docker rm -f BlueField_OS_${DISTRO}_${DISTRO_VERSION}
 docker build --platform linux/arm64 -t bfb_runtime_${DISTRO}${DISTRO_VERSION} -f Dockerfile .
