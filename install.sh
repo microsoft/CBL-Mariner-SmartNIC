@@ -276,9 +276,10 @@ mkdir -p /mnt/etc/netplan
 cat > /mnt/etc/netplan/60-mlnx.yaml << EOF
 network:
     ethernets:
-        oob_net0:
+        enamlnxbf17i0:
             renderer: networkd
             dhcp4: true
+			dhcp-identifier: mac
         tmfifo_net0:
             renderer: networkd
             addresses:
