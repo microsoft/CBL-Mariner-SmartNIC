@@ -6,6 +6,7 @@ WORKDIR /root/workspace
 ADD install.sh .
 ADD create_bfb .
 ADD rebuild_drivers /tmp
+ADD mlxbf-bootimages-*.aarch64.rpm .
 
 ENV RUN_FW_UPDATER=no
 
@@ -27,7 +28,7 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 10
 RUN /tmp/rebuild_drivers $(/bin/ls -1 /lib/modules/ | head -1)
 RUN /usr/sbin/depmod -a $(/bin/ls -1 /lib/modules/ | head -1) || true
 
-RUN yum install -y ibacm ibutils2 infiniband-diags infiniband-diags-compat libibumad libibverbs-utils librdmacm librdmacm-utils libxpmem libxpmem-devel mft mft-oem mlnx-ethtool mlnx-fw-updater mlnx-iproute2 mlnx-libsnap mlx-regex mlxbf-bootctl mlxbf-bootimages mstflint ofed-scripts opensm opensm-devel opensm-libs opensm-static rdma-core rdma-core-devel srp_daemon ucx ucx-cma ucx-devel ucx-ib ucx-knem ucx-rdmacm xpmem mlnx-tools mlnx-dpdk mlnx-dpdk-devel dpcp libvma libvma-utils python3-grpcio python3-protobuf rxp-compiler
+RUN yum install -y ibacm ibutils2 infiniband-diags infiniband-diags-compat libibumad libibverbs-utils librdmacm librdmacm-utils libxpmem libxpmem-devel mft mft-oem mlnx-ethtool mlnx-fw-updater mlnx-iproute2 mlnx-libsnap mlx-regex mlxbf-bootctl mstflint ofed-scripts opensm opensm-devel opensm-libs opensm-static rdma-core rdma-core-devel srp_daemon ucx ucx-cma ucx-devel ucx-ib ucx-knem ucx-rdmacm xpmem mlnx-tools mlnx-dpdk mlnx-dpdk-devel dpcp libvma libvma-utils python3-grpcio python3-protobuf rxp-compiler
 
 # RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location mlnx-ofa_kernel)
 # RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location mlnx-ofa_kernel-devel)
@@ -48,6 +49,7 @@ RUN rpm -iv --nodeps mlxbf-bfscripts*rpm
 
 RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location bf-release)
 RUN rpm -iv --nodeps bf-release*rpm
+RUN rpm -ihv --force mlxbf-bootimages-*.aarch64.rpm || true
 
 RUN /bin/rm -f *rpm
 
