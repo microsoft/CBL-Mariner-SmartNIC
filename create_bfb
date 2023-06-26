@@ -159,7 +159,7 @@ GRUB_DEFAULT=saved
 GRUB_DISABLE_SUBMENU=true
 GRUB_TERMINAL=console
 GRUB_SERIAL_COMMAND="serial --unit=1"
-GRUB_CMDLINE_LINUX="crashkernel=auto  console=hvc0 console=ttyAMA0 earlycon=pl011,0x01000000 modprobe.blacklist=mlx5_core,mlx5_ib"
+GRUB_CMDLINE_LINUX="crashkernel=auto  console=hvc0 console=ttyAMA0 earlycon=pl011,0x01000000 modprobe.blacklist=mlx5_core,mlx5_ib net.ifnames=0 biosdevname=0"
 GRUB_DISABLE_RECOVERY="true"
 GRUB_TIMEOUT_STYLE=countdown
 GRUB_DISABLE_OS_PROBER=false
@@ -221,7 +221,7 @@ copy_rpm()
 	package=$1
 
 	if ! (rpm -q $package); then
-		yum install -y $package
+		yum install -y $package || return
 	fi
 
 	case $package in
@@ -257,7 +257,7 @@ copy_rpm()
 }
 
 # Copy the content of RPM packages
-for package in  mlxbf-bfscripts util-linux dosfstools e2fsprogs kmod glibc coreutils pciutils usbutils chkconfig mft mft-oem kernel-mft tar which
+for package in  mlxbf-bfscripts util-linux dosfstools e2fsprogs kmod glibc coreutils pciutils usbutils chkconfig mft mft-oem kernel-mft tar which curl openssl $ADDON_RPMS
 do
 	copy_rpm $package
 done
@@ -265,7 +265,7 @@ done
 # Copy tools
 for tool in	xz efibootmgr bash getopt hexdump mstflint lspci perl \
 		lsblk shutdown systemctl strings \
-		mlxbf-bootctl id grep
+		mlxbf-bootctl id grep $ADDON_TOOLS
 do
 	if [ -d $tool ]; then
 		continue
@@ -274,12 +274,23 @@ do
 done
 
 sudo depmod -a -b ./ $kernel
-#sudo ldconfig -r ./
+sudo ldconfig -r ./ || true
 sudo mkdir -p usr/share/misc/ bin/
 sudo cp /usr/share/misc/pci.ids.gz usr/share/misc/
 # Make sure we can load mlx-bootctl
-bootctl_ko=`modinfo -F filename -k $kernel mlx-bootctl`
-sudo cp $bootctl_ko .
+bootctl_ko=""
+for driver in mlxbf-bootctl mlx-bootctl
+do
+	bootctl_ko=`modinfo -F filename -k $kernel $driver || true`
+	if [ ! -z $bootctl_ko ]; then
+		break
+	fi
+done
+if [ -z "$bootctl_ko" ]; then
+	echo "ERROR: Cannot find mlxbf-bootctl or mlx-bootctl drivers"
+	exit 1
+fi
+sudo cp $bootctl_ko ./mlx-bootctl.ko
 sudo mkdir -p ./lib/firmware/mellanox/boot/
 sudo cp /lib/firmware/mellanox/boot/default.bfb ./lib/firmware/mellanox/boot/default.bfb
 sudo cp -a /lib/firmware/mellanox/boot/capsule ./lib/firmware/mellanox/boot/
@@ -287,7 +298,7 @@ sudo mkdir -p mnt
 
 ex mkdir -p mariner
 # Tar the image
-XZ_OPT="--threads=0 -9 --verbose" tar -cJp --exclude='./workspace'  --exclude='./root/workspace' --exclude='./tmp/*' --exclude='./run/*' --exclude='./sys/*' --exclude='./proc/*' --exclude='./dev/*' --exclude='./.dockerenv' --exclude='./root/rpmbuild' --exclude='./root/.rpmmacros' --exclude='./root/.bash_history' --exclude='./var/tmp/*rpm' --exclude='./bin/qemu-aarch64-static' --exclude='./usr/bin/qemu-aarch64-static' --exclude='./usr/bin/qemu-arm-static' --exclude='./var/lib/yum/*' --exclude='./var/cache/yum/*' -f ./mariner/image.tar.xz -C / .
+XZ_OPT="--threads=0 -9 --verbose" tar -cJp --exclude='./workspace' --exclude='./signing-local' --exclude='./signing-shared' --exclude='./var/run/docker.sock' --exclude='./root/workspace' --exclude='./tmp/*' --exclude='./run/*' --exclude='./sys/*' --exclude='./proc/*' --exclude='./dev/*' --exclude='./.dockerenv' --exclude='./root/rpmbuild' --exclude='./root/.rpmmacros' --exclude='./root/.bash_history' --exclude='./var/tmp/*rpm' --exclude='./bin/qemu-aarch64-static' --exclude='./usr/bin/qemu-aarch64-static' --exclude='./usr/bin/qemu-arm-static' --exclude='./var/lib/yum/*' --exclude='./var/cache/yum/*' -f ./mariner/image.tar.xz -C / .
 ex install -m 0755 ${SDIR}/install.sh ./mariner/install.sh
 
 cat > etc/init.d/install-mariner << EOF
@@ -299,6 +310,7 @@ echo "=================================" | tee /dev/kmsg
 echo "Installing Mariner. Please wait..." | tee /dev/kmsg
 echo "=================================" | tee /dev/kmsg
 
+modprobe -a mlx5_ib ib_uverbs 2>&1 | tee /dev/kmsg
 sleep 5
 
 /bin/sh /mariner/install.sh
@@ -356,7 +368,7 @@ fi
 boot_args=$(mktemp)
 boot_path=$(mktemp)
 boot_desc=$(mktemp)
-printf "console=ttyAMA1 console=hvc0 console=ttyAMA0 earlycon=pl011,0x01000000 earlycon=pl011,0x01800000 initrd=initramfs quiet" > \
+printf "console=ttyAMA1 console=hvc0 console=ttyAMA0 earlycon=pl011,0x01000000 earlycon=pl011,0x01800000 initrd=initramfs" > \
 	"$boot_args"
 
 printf "VenHw(F019E406-8C9C-11E5-8797-001ACA00BFC4)/Image" > "$boot_path"
@@ -373,7 +385,7 @@ mkdir -p /workspace
 ex $mkbfb \
 	--image "$vmlinuz" --initramfs "$initramfs" \
 	--capsule "$CAPSULE" \
-	--boot-args "$boot_args" \
+	--boot-args-v0 "$boot_args" \
 	--boot-path "$boot_path" \
 	--boot-desc "$boot_desc" \
 	${BFB} /workspace/${MARINER_BFB}
