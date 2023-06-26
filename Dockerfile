@@ -19,7 +19,7 @@ RUN yum-config-manager --dump doca
 
 RUN for app in wget kmod util-linux netplan openssh-server iproute which git selinux-policy-devel diffutils file procps-ng patch rpm-build kernel kernel-devel kernel-headers python-netifaces libreswan python3-devel python3-idle python3-test python3-tkinter python3-Cython efibootmgr efivar grub2 grub2-efi grub2-efi-unsigned shim-unsigned-aarch64 device-mapper-persistent-data lvm2 acpid perf popt-devel bc flex bison edac-utils lm_sensors lm_sensors-sensord re2c ninja-build meson cryptsetup rasdaemon pciutils-devel watchdog python3-sphinx python3-six kexec-tools jq dbus libgomp iana-etc libgomp-devel libgcc-devel libgcc-atomic libmpc binutils iptables glibc-devel gcc tcl-devel automake libmnl autoconf tcl libnl3-devel openssl-devel libstdc++-devel binutils-devel libnl3 libdb-devel make libmnl-devel iptables-devel lsof desktop-file-utils doxygen cmake cmake3 libcap-ng-devel systemd-devel ncurses-devel net-tools sudo libpcap libnuma unbound vim; do yum install -y $app || true ;done
 # The Mariner versions of these packages cause build failures. Use only the NVIDIA versions for now
-RUN yum install -y --disablerepo="mariner*" perftest libibverbs libreswan
+# RUN yum install -y --disablerepo="mariner*" perftest libibverbs libreswan
 # Set python3.9 as a default
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 10
 # RUN update-alternatives --install /usr/bin/python python /usr/bin/python2.7 10
