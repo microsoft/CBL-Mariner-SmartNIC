@@ -35,8 +35,8 @@ RUN yum install -y ibacm ibutils2 infiniband-diags infiniband-diags-compat libib
 # RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location mlnx-ofa_kernel-source)
 # RUN rpm -iv --nodeps mlnx-ofa_kernel*rpm
 
-RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location libreswan)
-RUN rpm -Uv --nodeps *libreswan*rpm
+# RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location libreswan)
+# RUN rpm -Uv --nodeps *libreswan*rpm
 RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location openvswitch)
 RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location openvswitch-devel)
 RUN wget --no-check-certificate --no-verbose $(repoquery --nogpgcheck --location python3-openvswitch)
