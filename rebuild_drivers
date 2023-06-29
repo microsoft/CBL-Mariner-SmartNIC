@@ -23,9 +23,9 @@
 #
 ###############################################################################
 
-DOCA_VERSION=1.3.0
-BF_VERSION=3.9.0
-MLNX_OFED_VERSION=5.6-1.0.3.3
+DOCA_VERSION=2.0.2
+BF_VERSION=4.0.3
+MLNX_OFED_VERSION=23.04-0.5.3.0
 WDIR=${WDIR:-/tmp}
 
 # Execute command w/ echo and exit if it fail
@@ -79,7 +79,7 @@ mkdir -p ${WDIR}/${BF_VERSION}/extras/{SPECS,RPMS,SOURCES,BUILD}
 for p in ${WDIR}/${BF_VERSION}/extras/SRPMS/*.src.rpm
 do
 	case $p in
-		*rshim* | *libpka* | *mlx-OpenIPMI* | *mlxbf-bootctl* | *ipmb-host* | *mlx-cpld*)
+		*rshim* | *libpka* | *mlx-OpenIPMI* | *mlxbf-bootctl* | *ipmb-host* | *mlx-cpld* | *gpio* | *pinctrl*)
 			continue
 			;;
 		*dw_mmc*)
@@ -88,7 +88,15 @@ do
 			p=`/bin/ls -1 ${WDIR}/${BF_VERSION}/extras/SRPMS/dw_mmc*.src.rpm`
 			;;
 	esac
-	ex rpmbuild --rebuild -D "debug_package %{nil}" -D "KVERSION $kernel" --define "KMP 0" --define "_topdir ${WDIR}/${BF_VERSION}/extras" $p
+	rpmbuild --rebuild -D "debug_package %{nil}" -D "KVERSION $kernel" --define "KMP 0" --define "_topdir ${WDIR}/${BF_VERSION}/extras" $p
+	if [ $? -ne 0 ]; then
+		echo $p >> /tmp/SoC.failed
+	fi
 done
 
 ex rpm -ivh --force ${WDIR}/${BF_VERSION}/extras/RPMS/aarch64/*.rpm
+
+if [ -s /tmp/SoC.failed ]; then
+	echo "The following SoC drivers failed to be built:"
+	cat /tmp/SoC.failed
+fi
