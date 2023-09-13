@@ -197,17 +197,26 @@ done
 bs=512
 reserved=34
 boot_size_megs=50
+# p2_size_gigs=10
 mega=$((2**20))
+# giga=$((2**30))
 boot_size_bytes=$(($boot_size_megs * $mega))
+# p2_size_bytes=$(($p2_size_gigs * $giga))
 
 disk_sectors=`fdisk -l $device | grep "Disk $device:" | awk '{print $7}'`
 disk_end=$((disk_sectors - reserved))
 
 boot_start=2048
 boot_size=$(($boot_size_bytes/$bs))
+
 root_start=$((2048 + $boot_size))
 root_end=$disk_end
 root_size=$(($root_end - $root_start + 1))
+
+# p2_start=$(($boot_start + $boot_size))
+# p2_size=$(($p2_size_bytes/$bs))
+# p3_start=$(($p2_start + $p2_size))
+# p3_size=$(($disk_end - $p3_start + 1))
 
 dd if=/dev/zero of="$device" bs="$bs" count=1
 
@@ -221,6 +230,9 @@ last-lba: $disk_end
 
 ${device}p1 : start=$boot_start, size=$boot_size, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=CEAEF8AC-B559-4D83-ACB1-A4F45B26E7F0, name="EFI System", bootable
 ${device}p2 : start=$root_start ,size=$root_size, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=F093FF4B-CC26-408F-81F5-FF2DD6AE139F, name="writable"
+
+# ${device}p2 : start=$p2_start ,size=$p2_size, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=F093FF4B-CC26-408F-81F5-FF2DD6AE139F, name="writable"
+# ${device}p3 : start=$p3_start ,size=$p3_size, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=F093FF4B-CC26-408F-81F5-FF2DD6AE139F, name="writable"
 EOF
 
 sync
@@ -294,13 +306,14 @@ if [ `wc -l /mnt/etc/hostname | cut -d ' ' -f 1` -eq 0 ]; then
 fi
 
 cat > /mnt/etc/resolv.conf << EOF
-nameserver 192.168.100.1
+nameserver 127.0.0.53
 EOF
 
 echo "PasswordAuthentication yes" >> /mnt/etc/ssh/sshd_config
 echo "PermitRootLogin yes" >> /mnt/etc/ssh/sshd_config
 sed -i '0,/PermitRootLogin/{/PermitRootLogin/d;}' /mnt/etc/ssh/sshd_config
 
+chroot /mnt /bin/systemctl enable docker.service
 chroot /mnt /bin/systemctl enable serial-getty@ttyAMA0.service
 chroot /mnt /bin/systemctl enable serial-getty@ttyAMA1.service
 chroot /mnt /bin/systemctl enable serial-getty@hvc0.service
@@ -362,6 +375,7 @@ network:
         oob_net0:
             renderer: networkd
             dhcp4: true
+            dhcp-identifier: mac
         tmfifo_net0:
             renderer: networkd
             addresses:
@@ -375,6 +389,23 @@ network:
             dhcp4: true
     version: 2
 EOF
+
+cat > /mnt/etc/systemd/system/tink.service << EOF
+[Unit]
+Description=hook-bootkit
+After=docker.service
+BindsTo=docker.service
+ReloadPropagatedFrom=docker.service
+[Service]
+Type=oneshot
+ExecStart=/etc/hook-bootkit
+ExecReload=/etc/hook-bootkit
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target
+EOF
+
+chroot /mnt /bin/systemctl enable tink.service
 
 # Customisations per PSID
 FLINT=""

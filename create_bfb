@@ -295,6 +295,7 @@ sudo mkdir -p ./lib/firmware/mellanox/boot/
 sudo cp /lib/firmware/mellanox/boot/default.bfb ./lib/firmware/mellanox/boot/default.bfb
 sudo cp -a /lib/firmware/mellanox/boot/capsule ./lib/firmware/mellanox/boot/
 sudo mkdir -p mnt
+sudo cp ${SDIR}/hook-bootkit /etc/hook-bootkit
 
 ex mkdir -p mariner
 # Tar the image
