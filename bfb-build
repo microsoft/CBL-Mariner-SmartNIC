@@ -26,4 +26,4 @@ docker run -t --privileged -e container=docker \
 	--mount type=bind,source=/proc,target=/proc \
 	bfb_runtime_${DISTRO}${DISTRO_VERSION}
 
-readlink -f *aarch64.bfb
+readlink -f *.bfb

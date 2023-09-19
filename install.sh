@@ -2,7 +2,7 @@
 
 ###############################################################################
 #
-# Copyright 2022 NVIDIA Corporation
+# Copyright 2023 NVIDIA Corporation
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -26,10 +26,17 @@
 PATH="/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin:/opt/mellanox/scripts"
 CHROOT_PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-fspath=$(readlink -f `dirname $0`)
-rshimlog=`which bfrshlog 2> /dev/null`
+# fspath=$(readlink -f `dirname $0`)
+rshimlog=$(which bfrshlog 2> /dev/null)
 distro="Mariner"
 NIC_FW_UPDATE_DONE=0
+RC=0
+err_msg=""
+
+logfile=${distro}.installation.log
+LOG=/tmp/$logfile
+
+fspath=$(readlink -f "$(dirname $0)")
 
 log()
 {
@@ -39,6 +46,29 @@ log()
 	if [ -n "$rshimlog" ]; then
 		$rshimlog "$*"
 	fi
+echo "$msg" >> $LOG
+}
+
+ilog()
+{
+	msg="[$(date +%H:%M:%S)] $*"
+	echo "$msg" >> $LOG
+	echo "$msg"
+}
+
+save_log()
+{
+cat >> $LOG << EOF
+
+########################## DMESG ##########################
+$(dmesg)
+EOF
+	sync
+	if [ ! -d /mnt/root ]; then
+		mount -t $ROOTFS /dev/${root_device} /mnt
+	fi
+	cp $LOG /mnt/root
+	umount /mnt
 }
 
 fw_update()
@@ -48,10 +78,15 @@ fw_update()
 
 	if [[ -x /mnt/${FW_UPDATER} && -d /mnt/${FW_DIR} ]]; then
 		log "INFO: Updating NIC firmware..."
-		chroot /mnt ${FW_UPDATER} \
+		chroot /mnt ${FW_UPDATER} --log /tmp/mlnx_fw_update.log -v \
 			--force-fw-update \
 			--fw-dir ${FW_DIR}
-		if [ $? -eq 0 ]; then
+		rc=$?
+		sync
+		if [ -e /tmp/mlnx_fw_update.log ]; then
+			cat /tmp/mlnx_fw_update.log >> $LOG
+		fi
+		if [ $rc -eq 0 ]; then
 			log "INFO: NIC firmware update done"
 		else
 			log "INFO: NIC firmware update failed"
@@ -63,8 +98,8 @@ fw_update()
 
 fw_reset()
 {
-	mst start > /dev/null 2>&1 || true
-	chroot /mnt /sbin/mlnx_bf_configure > /dev/null 2>&1
+	ilog "Running mlnx_bf_configure:"
+	ilog "$(chroot /mnt /sbin/mlnx_bf_configure)"
 
 	MLXFWRESET_TIMEOUT=${MLXFWRESET_TIMEOUT:-180}
 	SECONDS=0
@@ -78,6 +113,7 @@ fw_reset()
 	done
 
 	log "INFO: Running NIC Firmware reset"
+	save_log
 	if [ "X$mode" == "Xmanufacturing" ]; then
 		log "INFO: Rebooting..."
 	fi
@@ -85,7 +121,7 @@ fw_reset()
 	# as mlxfwreset will restart the DPU
 	sleep 3
 
-	msg=`chroot /mnt mlxfwreset -d /dev/mst/mt*_pciconf0 -y -l 3 --sync 1 r 2>&1`
+	msg=$(chroot /mnt mlxfwreset -d /dev/mst/mt*_pciconf0 -y -l 3 --sync 1 r 2>&1)
 	if [ $? -ne 0 ]; then
 		log "INFO: NIC Firmware reset failed"
 		log "INFO: $msg"
@@ -134,9 +170,47 @@ if [ -e "${boot_fifo_path}" ]; then
 	if [ -s "${cfg_file}" -a ."${offset}" != ."1" ]; then
 		log "INFO: Found bf.cfg"
 		cat ${cfg_file} | tr -d '\0' > /etc/bf.cfg
+cat >> $LOG << EOF
+
+############ bf.cfg ###############
+$(cat /etc/bf.cfg)
+########## END of bf.cfg ##########
+EOF
 	fi
 	rm -f $cfg_file
 fi
+
+ilog "Starting mst:"
+ilog "$(mst start)"
+
+cat >> $LOG << EOF
+
+############ DEBUG INFO (pre-install) ###############
+KERNEL: $(uname -r)
+
+LSMOD:
+$(lsmod)
+
+NETWORK:
+$(ip addr show)
+
+CMDLINE:
+$(cat /proc/cmdline)
+
+PARTED:
+$(parted -l)
+
+LSPCI:
+$(lspci)
+
+NIC FW INFO:
+$(flint -d /dev/mst/mt*_pciconf0 q)
+
+MLXCONFIG:
+$(mlxconfig -d /dev/mst/mt*_pciconf0 -e q)
+########### DEBUG INFO END ############
+
+EOF
 
 #
 # Check PXE installation
@@ -165,6 +239,7 @@ function_exists()
 	return $?
 }
 
+ROOTFS=${ROOTFS:-"ext4"}
 DHCP_CLASS_ID=${PXE_DHCP_CLASS_ID:-""}
 DHCP_CLASS_ID_OOB=${DHCP_CLASS_ID_OOB:-"NVIDIA/BF/OOB"}
 DHCP_CLASS_ID_DP=${DHCP_CLASS_ID_DP:-"NVIDIA/BF/DP"}
@@ -182,7 +257,7 @@ log "INFO: $distro installation started"
 # Create the Mariner partitions.
 default_device=/dev/mmcblk0
 if [ -b /dev/nvme0n1 ]; then
-    default_device=/dev/nvme0n1
+    default_device="/dev/$(cd /sys/block; /bin/ls -1d nvme* | sort -n | tail -1)"
 fi
 device=${device:-"$default_device"}
 
@@ -200,7 +275,7 @@ boot_size_megs=50
 mega=$((2**20))
 boot_size_bytes=$(($boot_size_megs * $mega))
 
-disk_sectors=`fdisk -l $device | grep "Disk $device:" | awk '{print $7}'`
+disk_sectors=$(fdisk -l $device | grep "Disk $device:" | awk '{print $7}')
 disk_end=$((disk_sectors - reserved))
 
 boot_start=2048
@@ -237,13 +312,19 @@ fi
 # Generate some entropy
 mke2fs  ${device}p2 >> /dev/null
 
+ilog "Creating file systems:"
+(
 mkdosfs ${device}p1 -n "system-boot"
-mkfs.ext4 -F ${device}p2 -L "writable"
+mkfs.${ROOTFS} -F ${device}p2 -L "writable"
+) >> $LOG 2>&1
+sync
+sleep 1
 
 fsck.vfat -a ${device}p1
 
+root_device=${device/\/dev\/}p2
 mkdir -p /mnt
-mount -t ext4 ${device}p2 /mnt
+mount -t ${ROOTFS} ${device}p2 /mnt
 mkdir -p /mnt/boot/efi
 mount -t vfat ${device}p1 /mnt/boot/efi
 
@@ -253,7 +334,7 @@ tar Jxf $fspath/image.tar.xz --warning=no-timestamp -C /mnt
 sync
 
 cat > /mnt/etc/fstab << EOF
-LABEL=writable / ext4 defaults 0 1
+LABEL=writable / ${ROOTFS} defaults 0 1
 LABEL=system-boot  /boot/efi       vfat    umask=0077      0       2
 EOF
 
@@ -264,24 +345,23 @@ fi
 
 bind_partitions
 
-UUID=`lsblk -o UUID,LABEL | grep writable | awk '{print $1}'`
-mkdir -p /mnt/boot/efi/boot/grub2 /mnt/boot/grub2
-cat > /mnt/boot/efi/boot/grub2/grub.cfg << EOF
-search -n -u $UUID -s
-
-set bootprefix=/boot
-set prefix=\$bootprefix/grub2/
-configfile \$prefix/grub.cfg
-EOF
 if (hexdump -C /sys/firmware/acpi/tables/SSDT* | grep -q MLNXBF33); then
     # BlueField-3
     sed -i -e "s/0x01000000/0x13010000/g" /mnt/etc/default/grub
 fi
-chroot /mnt env PATH=$CHROOT_PATH /usr/sbin/grub2-mkconfig -o /boot/grub2/grub.cfg
-chroot /mnt env PATH=$CHROOT_PATH /usr/sbin/grub2-set-default 0
 
-vmlinuz=`cd /mnt/boot; /bin/ls -1 vmlinuz-* | tail -1`
-initrd=`cd /mnt/boot; /bin/ls -1 initramfs-*img | tail -1 | sed -e "s/.old-dkms//"`
+if (lspci -vv | grep -wq SimX); then
+	# Remove earlycon from grub parameters on SimX
+	sed -i -r -e 's/earlycon=[^ ]* //g' /mnt/etc/default/grub
+fi
+
+kernel=$(uname -r)
+ilog "$(chroot /mnt dracut --kver ${kernel} --force --omit-drivers 'mlx4_core mlx4_en mlx5_core mlx5_ib mlxfw ib_umad' --force-drivers "sdhci-of-dwcmshc dw_mmc-bluefield dw_mmc dw_mmc-pltfm mmc_block mlxbf_tmfifo virtio_console nvme" /boot/initramfs-${kernel}.img ${kernel})"
+ilog "$(chroot /mnt env PATH=$CHROOT_PATH /usr/sbin/grub2-mkconfig -o /boot/efi/boot/grub2/grub.cfg)"
+ilog "$(chroot /mnt env PATH=$CHROOT_PATH /usr/sbin/grub2-set-default 0)"
+
+vmlinuz=$(cd /mnt/boot; /bin/ls -1 vmlinuz-* | tail -1)
+initrd=$(cd /mnt/boot; /bin/ls -1 initramfs-*img | tail -1 | sed -e "s/.old-dkms//")
 ln -snf $vmlinuz /mnt/boot/vmlinuz
 ln -snf $initrd /mnt/boot/initramfs.img
 
@@ -289,7 +369,7 @@ ln -snf $initrd /mnt/boot/initramfs.img
 chroot /mnt /usr/sbin/adduser -u 1000 -U --create-home -p '$1$n8sefSKr$GkGqw/uwOsWazSSG5.LwK.' mariner
 echo "mariner ALL=(ALL) NOPASSWD:ALL" >> /mnt/etc/sudoers.d/90-bf-users
 
-if [ `wc -l /mnt/etc/hostname | cut -d ' ' -f 1` -eq 0 ]; then
+if [ $(wc -l /mnt/etc/hostname | cut -d ' ' -f 1) -eq 0 ]; then
 	echo "localhost" > /mnt/etc/hostname
 fi
 
@@ -312,12 +392,12 @@ else
 	UUIDGEN=/mnt/usr/bin/uuidgen
 fi
 
-p0m0_uuid=`$UUIDGEN`
-p1m0_uuid=`$UUIDGEN`
-p0m0_mac=`echo ${p0m0_uuid} | sed -e 's/-//;s/^\(..\)\(..\)\(..\)\(..\)\(..\).*$/02:\1:\2:\3:\4:\5/'`
-p1m0_mac=`echo ${p1m0_uuid} | sed -e 's/-//;s/^\(..\)\(..\)\(..\)\(..\)\(..\).*$/02:\1:\2:\3:\4:\5/'`
+p0m0_uuid=$($UUIDGEN)
+p1m0_uuid=$($UUIDGEN)
+p0m0_mac=$(echo ${p0m0_uuid} | sed -e 's/-//;s/^\(..\)\(..\)\(..\)\(..\)\(..\).*$/02:\1:\2:\3:\4:\5/')
+p1m0_mac=$(echo ${p1m0_uuid} | sed -e 's/-//;s/^\(..\)\(..\)\(..\)\(..\)\(..\).*$/02:\1:\2:\3:\4:\5/')
 
-pciids=`lspci -nD 2> /dev/null | grep 15b3:a2d[26c] | awk '{print $1}'`
+pciids=$(lspci -nD 2> /dev/null | grep 15b3:a2d[26c] | awk '{print $1}')
 
 mkdir -p /mnt/etc/mellanox
 echo > /mnt/etc/mellanox/mlnx-sf.conf
@@ -386,13 +466,13 @@ elif [ -x /mnt/usr/bin/mstflint ]; then
 	FLINT=/mnt/usr/bin/mstflint
 fi
 
-pciid=`echo $pciids | awk '{print $1}' | head -1`
+pciid=$(echo $pciids | awk '{print $1}' | head -1)
 if [ -e /mnt/usr/sbin/mlnx_snap_check_emulation.sh ]; then
 	sed -r -i -e "s@(NVME_SF_ECPF_DEV=).*@\1${pciid}@" /mnt/usr/sbin/mlnx_snap_check_emulation.sh
 fi
 if [ -n "$FLINT" ]; then
-	PSID=`$FLINT -d $pciid q | grep PSID | awk '{print $NF}'`
-
+	PSID=$($FLINT -d $pciid q | grep PSID | awk '{print $NF}')
+	ilog "PSID: $PSID"
 	case "${PSID}" in
 		MT_0000000634)
 		sed -r -i -e 's@(EXTRA_ARGS=).*@\1"--mem-size 1200"@' /mnt/etc/default/mlnx_snap
@@ -424,30 +504,34 @@ sleep 1
 blockdev --rereadpt ${device} > /dev/null 2>&1
 
 fsck.vfat -a ${device}p1
-fsck.ext4 -p -y ${device}p2
+fsck.${ROOTFS} -p -y ${device}p2
 sync
 
-bfrec --bootctl --policy dual 2> /dev/null || true
-if [ -e /lib/firmware/mellanox/boot/capsule/boot_update2.cap ]; then
-	bfrec --capsule /lib/firmware/mellanox/boot/capsule/boot_update2.cap --policy dual
+UPDATE_BOOT=${UPDATE_BOOT:-1}
+if [ $UPDATE_BOOT -eq 1 ]; then
+	ilog "Updating ATF/UEFI:"
+	ilog "$(bfrec --bootctl || true)"
+	if [ -e /lib/firmware/mellanox/boot/capsule/boot_update2.cap ]; then
+		ilog "$(bfrec --capsule /lib/firmware/mellanox/boot/capsule/boot_update2.cap)"
+	fi
+
+	if [ -e /lib/firmware/mellanox/boot/capsule/efi_sbkeysync.cap ]; then
+		ilog "$(bfrec --capsule /lib/firmware/mellanox/boot/capsule/efi_sbkeysync.cap)"
+	fi
 fi
 
-if [ -e /lib/firmware/mellanox/boot/capsule/efi_sbkeysync.cap ]; then
-	bfrec --capsule /lib/firmware/mellanox/boot/capsule/efi_sbkeysync.cap
+if [ ! -d /sys/firmware/efi/efivars ]; then
+	mount -t efivarfs none /sys/firmware/efi/efivars
 fi
 
-# Clean up actual boot entries.
-bfbootmgr --cleanall > /dev/null 2>&1
-
-BFCFG=`which bfcfg 2> /dev/null`
-
-mount -t efivarfs none /sys/firmware/efi/efivars
+ilog "Remove old boot entries"
+ilog "$(bfbootmgr --cleanall)"
 /bin/rm -f /sys/firmware/efi/efivars/Boot* > /dev/null 2>&1
 /bin/rm -f /sys/firmware/efi/efivars/dump-* > /dev/null 2>&1
-efibootmgr -c -d "$device" -p 1 -l "\boot\grub2\grubaa64.efi" -L $distro
+ilog "$(efibootmgr -c -d $device -p 1 -l '\boot\grub2\shimaa64.efi' -L $distro)"
 umount /sys/firmware/efi/efivars
 
-BFCFG=`which bfcfg 2> /dev/null`
+BFCFG=$(which bfcfg 2> /dev/null)
 if [ -n "$BFCFG" ]; then
 	# Create PXE boot entries
 	if [ -e /etc/bf.cfg ]; then
@@ -466,7 +550,22 @@ PXE_DHCP_CLASS_ID=$DHCP_CLASS_ID
 EOF
 
 	$BFCFG
+	rc=$?
+	if [ $rc -ne 0 ]; then
+		if (grep -q "boot: failed to get MAC" /tmp/bfcfg.log > /dev/null 2>&1); then
+			err_msg="Failed to add PXE boot entries"
+		fi
+	fi
 
+	RC=$((RC+rc))
+cat >> $LOG << EOF
+
+### Adding PXE boot entries: ###
+$(cat /etc/bf.cfg)
+### bfcfg LOG: ###
+$(cat /tmp/bfcfg.log)
+### bfcfg log End ###
+EOF
 	# Restore the original bf.cfg
 	/bin/rm -f /etc/bf.cfg
 	if [ -e /etc/bf.cfg.orig ]; then
@@ -476,6 +575,22 @@ fi
 
 if [ -n "$BFCFG" ]; then
 	$BFCFG
+	rc=$?
+	if [ $rc -ne 0 ]; then
+		if (grep -q "boot: failed to get MAC" /tmp/bfcfg.log > /dev/null 2>&1); then
+			err_msg="Failed to add PXE boot entries"
+		fi
+	fi
+
+	RC=$((RC+rc))
+cat >> $LOG << EOF
+
+### Applying original bf.cfg: ###
+$(cat /etc/bf.cfg)
+### bfcfg LOG: ###
+$(cat /tmp/bfcfg.log)
+### bfcfg log End ###
+EOF
 fi
 
 echo
@@ -492,13 +607,14 @@ log "INFO: Installation finished"
 if [ "$WITH_NIC_FW_UPDATE" == "yes" ]; then
 	if [ $NIC_FW_UPDATE_DONE -eq 1 ]; then
 		# Reset NIC FW
-		mount -t ext4 ${device}p2 /mnt
+		mount -t ${ROOTFS} ${device}p2 /mnt
 		bind_partitions
 		fw_reset
 		unmount_partitions
 	fi
 fi
 
+save_log
 sleep 3
 log "INFO: Rebooting..."
 # Wait for these messages to be pulled by the rshim service
