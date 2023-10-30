@@ -26,7 +26,6 @@
 PATH="/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin:/opt/mellanox/scripts"
 CHROOT_PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-# fspath=$(readlink -f `dirname $0`)
 rshimlog=$(which bfrshlog 2> /dev/null)
 distro="Mariner"
 NIC_FW_UPDATE_DONE=0
