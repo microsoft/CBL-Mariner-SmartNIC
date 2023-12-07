@@ -7,9 +7,10 @@ ADD install.sh .
 ADD create_bfb .
 ADD rebuild_drivers /tmp
 
-RUN yum install -y dnf-utils 
-RUN yum install -y sed
-RUN yum install -y libtool
+RUN yum install -y \
+    dnf-utils \
+    sed \
+    libtool
 RUN yum-config-manager --nogpgcheck --add-repo https://linux.mellanox.com/public/repo/doca/2.2.0/mariner2.0/aarch64/
 RUN sed -i -e "s/linux.mellanox.com_public_repo_doca_2.2.0_mariner2.0_aarch64_/doca/" /etc/yum.repos.d/linux.mellanox.com_public_repo_doca_2.2.0_mariner2.0_aarch64_.repo
 RUN yum-config-manager --save --setopt=doca.sslverify=0 doca
@@ -18,7 +19,6 @@ RUN yum-config-manager --dump doca
 
 RUN yum install -y \
     wget \
-    kmod \
     util-linux \
     sudo \
     netplan \
@@ -36,11 +36,12 @@ RUN yum install -y \
     kernel \
     kernel-devel \
     kernel-headers \
-    python3 \
     python3-devel \
-    python3-libs \
     python3-test \
     python3-pyelftools \
+    python3-sphinx \
+    python3-zope-interface \
+    python3-twisted \
     efibootmgr \
     efivar \
     grub2 \
@@ -48,7 +49,6 @@ RUN yum install -y \
     grub2-efi-unsigned \
     shim-unsigned-aarch64 \
     lvm2 \
-    popt-devel \
     bc \
     flex \
     bison \
@@ -57,12 +57,8 @@ RUN yum install -y \
     meson \
     cryptsetup \
     pciutils-devel \
-    python3-sphinx \
-    python3-six \
     kexec-tools \
     jq \
-    dbus \
-    libgomp \
     iana-etc \
     libgomp-devel \
     libgcc-devel \
@@ -97,12 +93,8 @@ RUN yum install -y \
     libgudev \
     libgudev-devel \
     lsb-release \
-    popt-devel \
-    pkg-config \
-    python3-twisted \
     libpcap \
     unbound \
-    python3-zope-interface \
     graphviz \
     less \
     iputils \
@@ -140,9 +132,13 @@ RUN yum install -y \
     mlnx-fw-updater \
     mlnx-iproute2 \
     mlnx-libsnap \
+    mlnx-tools \
+    mlnx-dpdk \
+    mlnx-dpdk-devel \
     mlx-regex \
     mlxbf-bootctl \
     mlxbf-bootimages \
+    mlxbf-bfscripts \
     mstflint \
     ofed-scripts \
     opensm \
@@ -160,20 +156,16 @@ RUN yum install -y \
     ucx-knem \
     ucx-rdmacm \
     xpmem \
-    mlnx-tools \
-    mlnx-dpdk \
-    mlnx-dpdk-devel \
     dpcp \
     libvma \
     libvma-utils \
     python3-grpcio \
     python3-protobuf \
+    python3-openvswitch \
     rxp-compiler \
     openvswitch \
     openvswitch-devel \
-    python3-openvswitch \
     openvswitch-ipsec \
-    mlxbf-bfscripts \
     bf-release
 
 RUN /bin/rm -f *rpm

@@ -70,7 +70,7 @@ EOF
 # Build and install MLNX_OFED drivers
 ex wget --no-check-certificate --quiet ${BASE_URL}/bluefield/${BF_VERSION}/extras/mlnx_ofed/${MLNX_OFED_VERSION}/MLNX_OFED_SRC-${MLNX_OFED_VERSION}.tgz
 ex tar xzf MLNX_OFED_SRC-${MLNX_OFED_VERSION}.tgz
-ex MLNX_OFED_SRC-${MLNX_OFED_VERSION}/install.pl -U -k $kernel --kernel-extra-args '--with-sf-cfg-drv --without-xdp --without-odp' --kernel-only --disable-kmp --bluefield --with-iser-modules --with-xpmem-modules
+ex MLNX_OFED_SRC-${MLNX_OFED_VERSION}/install.pl -U -k $kernel --kernel-extra-args '--with-sf-cfg-drv --without-xdp --without-odp' --kernel-only --disable-kmp --bluefield --with-xpmem-modules
 
 ex /bin/rm -f /etc/infiniband/vf-net-link-name.sh
 ex cp /usr/share/doc/mlnx-ofa_kernel/vf-net-link-name.sh /etc/infiniband/vf-net-link-name.sh
@@ -96,7 +96,7 @@ do
 			p=`/bin/ls -1 ${WDIR}/${BF_VERSION}/extras/SRPMS/dw_mmc*.src.rpm`
 			;;
 	esac
-	rpmbuild --rebuild -D "debug_package %{nil}" -D "KVERSION $kernel" --define "KMP 0" --define "_topdir ${WDIR}/${BF_VERSION}/extras" $p
+	ex rpmbuild --rebuild -D "debug_package %{nil}" -D "KVERSION $kernel" --define "KMP 0" --define "_topdir ${WDIR}/${BF_VERSION}/extras" $p
 	if [ $? -ne 0 ]; then
 		echo $p >> /tmp/SoC.failed
 	fi
