@@ -23,10 +23,11 @@
 #
 ###############################################################################
 
-DOCA_VERSION=2.0.2
-BF_VERSION=4.0.3
-MLNX_OFED_VERSION=23.04-0.5.3.0
+DOCA_VERSION=2.2.0
+BF_VERSION=4.2.0-12855
+MLNX_OFED_VERSION=23.07-0.5.0.0
 WDIR=${WDIR:-/tmp}
+BASE_URL=${BASE_URL:-"https://linux.mellanox.com/public/repo"}
 
 # Execute command w/ echo and exit if it fail
 ex()
@@ -38,11 +39,17 @@ ex()
 	fi
 }
 
+kernel=$1
+
+# Check if existing drivers compiled with the installed kernel
+if [ "$(rpm -qf --queryformat "[%{NAME}]" $(modinfo -n -k $kernel mlx5_core))" == "mlnx-ofa_kernel-modules" ]; then
+	echo "MLNX_OFED drivers compiled for ${kernel}. No need to recompile."
+	exit 0
+fi
+
 if (rpm -q dw_mmc > /dev/null 2>&1); then
 	rpm -e dw_mmc
 fi
-
-kernel=$1
 
 mkdir -p $WDIR
 cd $WDIR
@@ -56,13 +63,14 @@ cat >> /root/.rpmmacros << EOF
 %_datadir   %{_datarootdir}
 %_datarootdir       %{_prefix}/share
 %_includedir       %{_prefix}/include
+%__make       /usr/bin/make
 EOF
 
 
 # Build and install MLNX_OFED drivers
-ex wget --no-check-certificate --quiet https://linux.mellanox.com/public/repo/bluefield/${BF_VERSION}/extras/mlnx_ofed/${MLNX_OFED_VERSION}/MLNX_OFED_SRC-${MLNX_OFED_VERSION}.tgz
+ex wget --no-check-certificate --quiet ${BASE_URL}/bluefield/${BF_VERSION}/extras/mlnx_ofed/${MLNX_OFED_VERSION}/MLNX_OFED_SRC-${MLNX_OFED_VERSION}.tgz
 ex tar xzf MLNX_OFED_SRC-${MLNX_OFED_VERSION}.tgz
-ex MLNX_OFED_SRC-${MLNX_OFED_VERSION}/install.pl -U -k $kernel --kernel-extra-args '--with-sf-cfg-drv --without-xdp --without-odp' --kernel-only --disable-kmp --bluefield --with-iser-modules --with-xpmem-modules
+ex MLNX_OFED_SRC-${MLNX_OFED_VERSION}/install.pl -U -k $kernel --kernel-extra-args '--with-sf-cfg-drv --without-xdp --without-odp' --kernel-only --disable-kmp --bluefield --with-xpmem-modules
 
 ex /bin/rm -f /etc/infiniband/vf-net-link-name.sh
 ex cp /usr/share/doc/mlnx-ofa_kernel/vf-net-link-name.sh /etc/infiniband/vf-net-link-name.sh
@@ -73,22 +81,22 @@ ex cp /usr/share/doc/mlnx-ofa_kernel/82-net-setup-link.rules /etc/udev/rules.d/8
 # find MLNX_OFED_SRC-${MLNX_OFED_VERSION}/RPMS -name '*rpm' -a ! -name '*debuginfo*rpm' -exec rpm -ihv '{}' \;
 
 # Build and install BlueField SoC drivers
-ex wget --quiet --no-check-certificate -r -np -nH --cut-dirs=3 -R "index.html*" https://linux.mellanox.com/public/repo/bluefield/${BF_VERSION}/extras/SRPMS/
+ex wget --quiet --no-check-certificate -r -np -nH --cut-dirs=3 -R "index.html*" ${BASE_URL}/bluefield/${BF_VERSION}/extras/SRPMS/
 mkdir -p ${WDIR}/${BF_VERSION}/extras/{SPECS,RPMS,SOURCES,BUILD}
 
 for p in ${WDIR}/${BF_VERSION}/extras/SRPMS/*.src.rpm
 do
 	case $p in
-		*rshim* | *libpka* | *mlx-OpenIPMI* | *mlxbf-bootctl* | *ipmb-host* | *mlx-cpld* | *gpio* | *pinctrl*)
+		*rshim* | *libpka* | *mlx-OpenIPMI* | *mlxbf-bootctl* | *ipmb-host* | *mlx-cpld*)
 			continue
 			;;
 		*dw_mmc*)
 			/bin/rm -f $p
-			wget  --quiet --no-check-certificate -P ${WDIR}/${BF_VERSION}/extras/SRPMS/ https://linux.mellanox.com/public/repo/bluefield/${BF_VERSION}/extras/5.15/dw_mmc-5.15.36-0.src.rpm
+			wget  --quiet --no-check-certificate -P ${WDIR}/${BF_VERSION}/extras/SRPMS/ ${BASE_URL}/bluefield/${BF_VERSION}/extras/5.15/dw_mmc-5.15.36-0.src.rpm
 			p=`/bin/ls -1 ${WDIR}/${BF_VERSION}/extras/SRPMS/dw_mmc*.src.rpm`
 			;;
 	esac
-	rpmbuild --rebuild -D "debug_package %{nil}" -D "KVERSION $kernel" --define "KMP 0" --define "_topdir ${WDIR}/${BF_VERSION}/extras" $p
+	ex rpmbuild --rebuild -D "debug_package %{nil}" -D "KVERSION $kernel" --define "KMP 0" --define "_topdir ${WDIR}/${BF_VERSION}/extras" $p
 	if [ $? -ne 0 ]; then
 		echo $p >> /tmp/SoC.failed
 	fi

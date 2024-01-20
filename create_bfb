@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 # Copyright (c) 2020, Mellanox Technologies
 # All rights reserved.
@@ -141,7 +141,7 @@ ex rm -rf initramfs
 
 initramfs=$WDIR/dump-initramfs-v0
 if [ ! -e /boot/initramfs-${kernel}.img ]; then
-	ex dracut --kver ${kernel} --force --omit-drivers 'mlx4_core mlx4_en' /boot/initramfs-${kernel}.img ${kernel}
+	ex dracut --kver ${kernel} --force --omit-drivers 'mlx4_core mlx4_en' --add-drivers "sdhci-of-dwcmshc dw_mmc-bluefield dw_mmc dw_mmc-pltfm mmc_block mlxbf_tmfifo virtio_console mlx5_core mlx5_ib mlxfw ib_umad nvme" /boot/initramfs-${kernel}.img ${kernel}
 fi
 cp /boot/initramfs-${kernel}.img $initramfs
 
@@ -257,9 +257,9 @@ copy_rpm()
 }
 
 # Copy the content of RPM packages
-for package in  mlxbf-bfscripts util-linux dosfstools e2fsprogs kmod glibc coreutils pciutils usbutils chkconfig mft mft-oem kernel-mft tar which curl openssl $ADDON_RPMS
+for package in  mlxbf-bfscripts util-linux dosfstools e2fsprogs kmod glibc coreutils pciutils usbutils chkconfig mft mft-oem kernel-mft tar which curl openssl nvme-cli mmc-utils $ADDON_RPMS
 do
-	copy_rpm $package
+	copy_rpm $package || true
 done
 
 # Copy tools
@@ -274,7 +274,7 @@ do
 done
 
 sudo depmod -a -b ./ $kernel
-sudo ldconfig -r ./ || true
+sudo ldconfig -r ./
 sudo mkdir -p usr/share/misc/ bin/
 sudo cp /usr/share/misc/pci.ids.gz usr/share/misc/
 # Make sure we can load mlx-bootctl
@@ -305,12 +305,14 @@ cat > etc/init.d/install-mariner << EOF
 #!/bin/bash
 
 insmod /mlx-bootctl.ko > /dev/null 2>&1
+modprobe -a sdhci-of-dwcmshc mlxbf_tmfifo dw_mmc_bluefield mmc_block virtio_console nvme 2>&1 | tee /dev/kmsg
+modprobe -a mlx5_ib mlxfw ib_umad 2>&1 | tee /dev/kmsg
+
 echo
 echo "=================================" | tee /dev/kmsg
 echo "Installing Mariner. Please wait..." | tee /dev/kmsg
 echo "=================================" | tee /dev/kmsg
 
-modprobe -a mlx5_ib ib_uverbs 2>&1 | tee /dev/kmsg
 sleep 5
 
 /bin/sh /mariner/install.sh
@@ -366,10 +368,13 @@ if [ ! -e $CAPSULE ]; then
 fi
 
 boot_args=$(mktemp)
+boot_args2=$(mktemp)
 boot_path=$(mktemp)
 boot_desc=$(mktemp)
 printf "console=ttyAMA1 console=hvc0 console=ttyAMA0 earlycon=pl011,0x01000000 earlycon=pl011,0x01800000 initrd=initramfs" > \
 	"$boot_args"
+printf "console=hvc0 console=ttyAMA0 earlycon=pl011,0x13010000 initrd=initramfs" > \
+	"$boot_args2"
 
 printf "VenHw(F019E406-8C9C-11E5-8797-001ACA00BFC4)/Image" > "$boot_path"
 printf "Linux from rshim" > "$boot_desc"
@@ -386,6 +391,7 @@ ex $mkbfb \
 	--image "$vmlinuz" --initramfs "$initramfs" \
 	--capsule "$CAPSULE" \
 	--boot-args-v0 "$boot_args" \
+	--boot-args-v2 "$boot_args2" \
 	--boot-path "$boot_path" \
 	--boot-desc "$boot_desc" \
 	${BFB} /workspace/${MARINER_BFB}
