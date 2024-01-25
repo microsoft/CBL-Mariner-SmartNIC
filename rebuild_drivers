@@ -24,8 +24,8 @@
 ###############################################################################
 
 DOCA_VERSION=2.2.0
-BF_VERSION=4.2.0-12855
-MLNX_OFED_VERSION=23.07-0.5.0.0
+BF_VERSION=4.5.0-12993
+MLNX_OFED_VERSION=23.10-1.2.0.0
 WDIR=${WDIR:-/tmp}
 BASE_URL=${BASE_URL:-"https://linux.mellanox.com/public/repo"}
 
