@@ -1,5 +1,5 @@
 #  docker build -t bfb_runtime_mariner -f Dockerfile .
-FROM --platform=linux/arm64 mcr.microsoft.com/cbl-mariner/base/core:2.0.20231130-arm64
+FROM --platform=linux/arm64 mcr.microsoft.com/cbl-mariner/base/core:2.0.20240301-arm64
 ADD qemu-aarch64-static /usr/bin/
 
 WORKDIR /root/workspace
