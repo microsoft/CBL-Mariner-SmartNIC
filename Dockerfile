@@ -1,14 +1,16 @@
 #  docker build -t bfb_runtime_mariner -f Dockerfile .
-FROM --platform=linux/arm64 mcr.microsoft.com/cbl-mariner/base/core:2.0.20231130-arm64
+FROM --platform=linux/arm64 mcr.microsoft.com/cbl-mariner/base/core:2.0.20240301-arm64
 ADD qemu-aarch64-static /usr/bin/
 
 WORKDIR /root/workspace
 ADD install.sh .
 ADD create_bfb .
 ADD rebuild_drivers /tmp
+ADD mlxbf-bootimages-*.aarch64.rpm .
 
-RUN yum install -y \
-    dnf-utils \
+RUN tdnf install -y dnf-utils
+
+RUN tdnf install -y \
     sed \
     libtool
 RUN yum-config-manager --nogpgcheck --add-repo https://linux.mellanox.com/public/repo/doca/2.2.0/mariner2.0/aarch64/
@@ -168,5 +170,6 @@ RUN yum install -y \
     openvswitch-ipsec \
     bf-release
 
+RUN rpm -ihv --force mlxbf-bootimages-*.aarch64.rpm || true
 RUN /bin/rm -f *rpm
 CMD  /root/workspace/create_bfb -k $(/bin/ls -1 /lib/modules/ | head -1)
