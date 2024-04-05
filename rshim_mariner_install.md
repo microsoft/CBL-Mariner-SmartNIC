@@ -5,52 +5,52 @@ Rshim do not build nativelly in Azure Linux host, there are some prerequisites t
 Rshim provides bfb-install and rshim tools.
 
 ## Prerequisites
+
 Get an Azure Linux host with a Bluefield 2/3 connected via PCIE.
 Verify the card is connected via:
     ```bash
     lspci | grep Mellanox
-    `````
+    ```
 
 ## Steps
 
-3. Install the required dependencies:
+1. Install the required dependencies:
     ```bash
-    sudo tdnf install pciutils-devel
-    sudo tdnf install lubusb-devel
-    `````
+    tdnf install pciutils-devel lubusb-devel
+    ```
 
-4. Download the rshim interface source code:
+2. Download the rshim interface source code:
     ```bash
     git clone git@github.com:Mellanox/rshim-user-space.git
     ```
 
-5. Change to the rshim directory:
+3. Change to the rshim directory:
     ```bash
-    cd rshim
+    cd rshim-user-space
     ```
 
-6. Configure the rshim interface:
+4. Configure the rshim interface:
     ```bash
-    ./bootstrap
-    sudo ./configure
+    ./bootstrap.sh
+    ./configure
     ```
 
-6. Build the rshim interface:
+5. Build the rshim interface:
     ```bash
     sudo make
     ```
 
-7. Install the rshim interface:
+6. Install the rshim interface:
     ```bash
     sudo install
     ```
 
-9. Update $PATH
+7. Update $PATH
     ```bash
     PATH=$PATH:/usr/local/sbin
     ```
 
-9. Update rshim.service
+8. Update rshim.service
     ```bash
     sed -i 's/usr\/sbin/usr\/local\/sbin/g' /etc/systemd/system/rshim.service
     ```
@@ -60,7 +60,7 @@ Verify the card is connected via:
     sudo systemctl start rshim
     ```
 
-8. Verify the installation:
+10. Verify the installation:
     ```bash
     rshim --version
     ```
