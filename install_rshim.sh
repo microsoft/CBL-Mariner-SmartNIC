@@ -34,4 +34,4 @@ sed -i 's/usr\/sbin/usr\/local\/sbin/g' /etc/systemd/system/rshim.service
 echo "Starting rshim service..."
 systemctl start rshim
 
-echo "Driver installation completed successfully."
+echo "Driver installation completed successfully. You can use bfb-install and rshim interfaces now."
