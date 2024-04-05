@@ -32,7 +32,7 @@ Verify the card is connected via:
 6. Configure the rshim interface:
     ```bash
     ./bootstrap
-    sudo ./configure  --with-systemdsystemunitdir=/usr/lib/systemd/system
+    sudo ./configure  --with-systemdsystemunitdir=/etc/systemd/system
     ```
 
 6. Build the rshim interface:
@@ -50,9 +50,9 @@ Verify the card is connected via:
     PATH=$PATH:/usr/local/sbin
     ```
 
-9. Update rshim.service to search for the bin at /usr/local/sbin (need to simplify)
+9. Update rshim.service
     ```bash
-    vi /etc/systemd/system/rshim.service
+    sed -i 's/usr\/sbin/usr\/local\/sbin/g' /etc/systemd/system/rshim.service
     ```
 
 9. Restart service 
