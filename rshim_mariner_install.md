@@ -32,7 +32,7 @@ Verify the card is connected via:
 6. Configure the rshim interface:
     ```bash
     ./bootstrap
-    sudo ./configure  --with-systemdsystemunitdir=/etc/systemd/system
+    sudo ./configure
     ```
 
 6. Build the rshim interface:
