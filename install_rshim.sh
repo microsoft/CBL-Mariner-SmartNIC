@@ -1,5 +1,4 @@
 #!/bin/bash
-#Need to run this script using sudo
 
 # Install prerequisites
 echo "Installing prerequisites..."
@@ -12,26 +11,26 @@ git clone https://github.com/Mellanox/rshim-user-space.git
 # Navigate to the repository directory
 cd rshim-user-space
 
-# Build the driver (replace with actual build commands)
+# Build the driver
 echo "Building the driver..."
 ./bootstrap.sh
 ./configure
 make
 
-# Install the driver (replace with actual install commands)
+# Install the driver
 echo "Installing the driver..."
-make install
+sudo make install
 
-#Updating PATH
+# Updating PATH
 echo
 PATH=$PATH:/usr/local/sbin
 
 # Update rshim service file
 echo
-sed -i 's/usr\/sbin/usr\/local\/sbin/g' /etc/systemd/system/rshim.service
+sudo sed -i 's/usr\/sbin/usr\/local\/sbin/g' /etc/systemd/system/rshim.service
 
 # Start rshim service
 echo "Starting rshim service..."
-systemctl start rshim
+sudo systemctl start rshim
 
 echo "Driver installation completed successfully. You can use bfb-install and rshim interfaces now."

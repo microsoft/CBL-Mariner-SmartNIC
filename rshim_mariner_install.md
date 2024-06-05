@@ -7,16 +7,13 @@ Rshim provides bfb-install and rshim tools.
 ## Prerequisites
 
 Get an Azure Linux host with a Bluefield 2/3 connected via PCIE.
-Verify the card is connected via
+Verify the card is connected via ```lspci | grep Mell```
 
-    lspci | grep Mell
-
-    
 ## Steps
 
 1. Install the required dependencies:
     ```bash
-    tdnf install pciutils-devel lubusb-devel
+    sudo tdnf install pciutils-devel lubusb-devel
     ```
 
 2. Download the rshim interface source code:
@@ -37,7 +34,7 @@ Verify the card is connected via
 
 5. Build the rshim interface:
     ```bash
-    sudo make
+    make
     ```
 
 6. Install the rshim interface:
@@ -52,7 +49,7 @@ Verify the card is connected via
 
 8. Update rshim.service
     ```bash
-    sed -i 's/usr\/sbin/usr\/local\/sbin/g' /etc/systemd/system/rshim.service
+    sudo sed -i 's/usr\/sbin/usr\/local\/sbin/g' /etc/systemd/system/rshim.service
     ```
 
 9. Restart service 

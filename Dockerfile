@@ -1,6 +1,6 @@
 #  docker build -t bfb_runtime_mariner -f Dockerfile .
 FROM --platform=linux/arm64 mcr.microsoft.com/cbl-mariner/base/core:2.0.20240301-arm64
-ADD qemu-aarch64-static /usr/bin/
+# ADD qemu-aarch64-static /usr/bin/
 
 WORKDIR /root/workspace
 ADD install.sh .
@@ -17,7 +17,7 @@ RUN yum-config-manager --save --setopt=doca.sslverify=0 doca
 RUN yum-config-manager --save --setopt=doca.gpgcheck=0 doca
 RUN yum-config-manager --dump doca
 
-RUN yum install -y \
+RUN yum install -y -q\
     wget \
     util-linux \
     sudo \
@@ -114,7 +114,7 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 10
 RUN /tmp/rebuild_drivers $(/bin/ls -1 /lib/modules/ | head -1)
 RUN /usr/sbin/depmod -a $(/bin/ls -1 /lib/modules/ | head -1) || true
 
-RUN yum install -y \
+RUN yum install -y -q\
     ibacm \
     ibutils2 \
     infiniband-diags \
@@ -169,4 +169,4 @@ RUN yum install -y \
     bf-release
 
 RUN /bin/rm -f *rpm
-CMD  /root/workspace/create_bfb -k $(/bin/ls -1 /lib/modules/ | head -1)
+CMD  /root/workspace/create_bfb -k $(/bin/ls -1 /lib/modules/ | head -1) --verbose
