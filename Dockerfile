@@ -1,5 +1,8 @@
 #  docker build -t bfb_runtime_mariner -f Dockerfile .
-FROM --platform=linux/arm64 mcr.microsoft.com/cbl-mariner/base/core:2.0.20240301-arm64
+# FROM --platform=linux/arm64 mcr.microsoft.com/cbl-mariner/base/core:2.0.20240301-arm64
+FROM --platform=linux/arm64 azurelinuxpreview.azurecr.io/public/azurelinux/base/core:3.0
+
+
 ADD qemu-aarch64-static /usr/bin/
 
 WORKDIR /root/workspace
@@ -7,7 +10,7 @@ ADD install.sh .
 ADD create_bfb .
 ADD rebuild_drivers /tmp
 
-RUN yum install -y \
+RUN tdnf install -y \
     dnf-utils \
     sed \
     libtool
@@ -103,7 +106,6 @@ RUN yum install -y \
     qemu-kvm \
     libvirt \
     libguestfs-tools \
-    libreswan \
     ipmitool \
     nvme-cli \
     coreutils \
