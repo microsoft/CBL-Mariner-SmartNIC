@@ -1,5 +1,6 @@
 #  docker build -t bfb_runtime_mariner -f Dockerfile .
-FROM --platform=linux/arm64 mcr.microsoft.com/cbl-mariner/base/core:2.0.20240301-arm64
+FROM --platform=linux/arm64 mcr.microsoft.com/cbl-mariner/base/core:2.0.20240731-arm64
+
 ADD qemu-aarch64-static /usr/bin/
 
 WORKDIR /root/workspace
@@ -7,7 +8,7 @@ ADD install.sh .
 ADD create_bfb .
 ADD rebuild_drivers /tmp
 
-RUN yum install -y \
+RUN tdnf install -y \
     dnf-utils \
     sed \
     libtool
@@ -17,7 +18,7 @@ RUN yum-config-manager --save --setopt=doca.sslverify=0 doca
 RUN yum-config-manager --save --setopt=doca.gpgcheck=0 doca
 RUN yum-config-manager --dump doca
 
-RUN yum install -y \
+RUN tdnf install -y \
     wget \
     util-linux \
     sudo \
@@ -103,7 +104,6 @@ RUN yum install -y \
     qemu-kvm \
     libvirt \
     libguestfs-tools \
-    libreswan \
     ipmitool \
     nvme-cli \
     coreutils \
@@ -114,7 +114,7 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 10
 RUN /tmp/rebuild_drivers $(/bin/ls -1 /lib/modules/ | head -1)
 RUN /usr/sbin/depmod -a $(/bin/ls -1 /lib/modules/ | head -1) || true
 
-RUN yum install -y \
+RUN tdnf install -y \
     ibacm \
     ibutils2 \
     infiniband-diags \
